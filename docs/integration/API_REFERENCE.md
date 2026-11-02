@@ -441,7 +441,17 @@ player.is_master         # bool - True if group master
 player.is_slave          # bool - True if slave in a group
 player.group             # Group | None - Group object (for multi-player scenarios)
 player.group_master_name # str | None - Safe accessor for group master's name
+player.multiroom_surround    # bool | None - WiiM "surround" flag from multiroom:getSlaveList (Home Theater grouping)
+player.multiroom_group_type  # int | None - raw "group_type" from multiroom:getSlaveList (-1 ungrouped, 1 master observed)
 ```
+
+`multiroom_surround` and `multiroom_group_type` are the `surround` / `group_type`
+fields that WiiM wmrm 4.3 firmware adds to `multiroom:getSlaveList` (see
+[WiiM Discovered Read-Only APIs](../design/WIIM_DISCOVERED_APIS.md)). `surround`
+is the Home Theater surround-grouping flag. Both are `None` until the device's own
+refresh reports them, and stay `None` for group slaves and non-WiiM devices. The
+Home Theater toggle itself has no known read or write command. The raw payload is
+available from `client.get_multiroom_slave_list()`.
 
 **Role Detection** - SINGLE source of truth:
 - Role comes from device API state via `detect_role()` function

@@ -45,6 +45,39 @@ def _needs_wifi_direct_mode(device_info: DeviceInfo | None) -> bool:
     return device_info.needs_wifi_direct_multiroom
 
 
+def _parse_slave_list_surround(value: Any) -> bool | None:
+    """Return the ``surround`` flag from ``multiroom:getSlaveList`` as a bool, or None.
+
+    WiiM firmware with wmrm_version 4.3 reports ``"surround": 0|1`` (Home Theater
+    surround grouping). Older LinkPlay firmware omits the field.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value == 1
+    if isinstance(value, str) and value.strip() in {"0", "1"}:
+        return value.strip() == "1"
+    return None
+
+
+def _parse_slave_list_group_type(value: Any) -> int | None:
+    """Return the raw ``group_type`` from ``multiroom:getSlaveList`` as an int, or None.
+
+    Observed values: -1 when ungrouped, 1 on a group master. Semantics of other
+    values are not confirmed, so the raw integer is passed through.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
 class GroupAPI:
     """Helpers for creating / managing LinkPlay multi-room groups.
 
@@ -172,6 +205,12 @@ class GroupAPI:
                     }
                     if wmrm_version:
                         multiroom["wmrm_version"] = wmrm_version
+                    surround = _parse_slave_list_surround(slaves_resp.parsed.get("surround"))
+                    if surround is not None:
+                        multiroom["surround"] = surround
+                    group_type = _parse_slave_list_group_type(slaves_resp.parsed.get("group_type"))
+                    if group_type is not None:
+                        multiroom["group_type"] = group_type
 
                     _logger.debug(
                         "get_multiroom_status: Populated multiroom from getSlaveList: %d slaves",
@@ -387,12 +426,28 @@ class GroupAPI:
         Returns:
             List of slave dicts with ip, uuid, name, etc.
         """
+        payload = await self.get_multiroom_slave_list()
+        slave_list = payload.get("slave_list", [])
+        if isinstance(slave_list, list):
+            return slave_list
+        return []
+
+    async def get_multiroom_slave_list(self) -> dict[str, Any]:
+        """Return the raw ``multiroom:getSlaveList`` payload (master or solo device).
+
+        Besides ``slaves`` and ``slave_list``, WiiM firmware with wmrm_version 4.3
+        also reports ``surround`` (Home Theater surround grouping flag, 0/1) and
+        ``group_type`` (-1 ungrouped, 1 master observed). Per-slave entries on that
+        firmware carry ``channel``, ``group_channel``, ``volume`` and ``mute``.
+
+        Returns:
+            The parsed JSON object, or an empty dict when the response is not a
+            JSON object (unsupported command, plain text, transport error payload).
+        """
         resp = await self._request(API_ENDPOINT_GROUP_SLAVES)  # type: ignore[attr-defined]
         if isinstance(resp.parsed, dict):
-            slave_list = resp.parsed.get("slave_list", [])
-            if isinstance(slave_list, list):
-                return slave_list
-        return []
+            return resp.parsed
+        return {}
 
     async def kick_slave(self, slave_ip: str) -> None:
         """Remove a slave device from the group (master only).
@@ -558,10 +613,17 @@ class GroupAPI:
                         slave_ips.append(str(item))
                         slave_uuids.append("")
 
-        # If no slaves from status, try get_slaves_info() API call to get IPs and UUIDs
+        # If no slaves from status, query getSlaveList for IPs, UUIDs and the WiiM surround / group_type fields
+        surround: bool | None = None
+        group_type: int | None = None
         if not slave_ips:
             try:
-                slaves_info = await self.get_slaves_info()
+                slave_list_payload = await self.get_multiroom_slave_list()
+                surround = _parse_slave_list_surround(slave_list_payload.get("surround"))
+                group_type = _parse_slave_list_group_type(slave_list_payload.get("group_type"))
+                slaves_info = slave_list_payload.get("slave_list", [])
+                if not isinstance(slaves_info, list):
+                    slaves_info = []
                 for slave in slaves_info:
                     ip = slave.get("ip", "")
                     uuid = slave.get("uuid", "")
@@ -587,6 +649,8 @@ class GroupAPI:
                 slave_hosts=slave_ips,
                 slave_uuids=slave_uuids,
                 slave_count=len(slave_ips),
+                surround=surround,
+                group_type=group_type,
             )
         else:
             # No slaves - we're solo
@@ -598,6 +662,8 @@ class GroupAPI:
                 slave_hosts=[],
                 slave_uuids=[],
                 slave_count=0,
+                surround=surround,
+                group_type=group_type,
             )
 
     async def get_group_state(

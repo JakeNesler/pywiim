@@ -249,6 +249,8 @@ class GroupOperations:
                 slave_uuids = group_info.slave_uuids
                 self.player._group_slave_hosts = list(slave_hosts)
                 self.player._group_slave_uuids = list(slave_uuids)
+                self.player._group_surround = group_info.surround
+                self.player._group_type = group_info.group_type
 
                 # Trust get_device_group_info() result - it checks group field and master info
                 # No override needed - the group field is always correct

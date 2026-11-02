@@ -85,6 +85,10 @@ class PlayerBase:
         # to this host during their poll (wiim #273).
         self._group_slave_hosts: list[str] = []
         self._group_slave_uuids: list[str] = []
+        # WiiM Home Theater ``surround`` flag and raw ``group_type`` from this device's
+        # own multiroom:getSlaveList (None until reported; see DeviceGroupInfo).
+        self._group_surround: bool | None = None
+        self._group_type: int | None = None
 
         # Cached audio output status (updated via refresh())
         self._audio_output_status: dict[str, Any] | None = None
@@ -205,6 +209,25 @@ class PlayerBase:
             'slave' if in group as slave.
         """
         return self._detected_role
+
+    @property
+    def multiroom_surround(self) -> bool | None:
+        """WiiM Home Theater ``surround`` flag from this device's last group refresh.
+
+        Comes from ``multiroom:getSlaveList`` (``"surround": 0|1``), which WiiM
+        firmware with wmrm_version 4.3 reports. None when the device has not
+        reported it, for example on non-WiiM devices or while this player is a
+        group slave (slaves do not query the slave list).
+        """
+        return self._group_surround
+
+    @property
+    def multiroom_group_type(self) -> int | None:
+        """Raw ``group_type`` from this device's last ``multiroom:getSlaveList``.
+
+        Observed values: -1 when ungrouped, 1 on a group master. None when not reported.
+        """
+        return self._group_type
 
     @property
     def is_solo(self) -> bool:

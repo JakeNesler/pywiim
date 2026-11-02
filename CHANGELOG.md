@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Parse the `surround` and `group_type` fields that WiiM wmrm 4.3 firmware adds to `multiroom:getSlaveList`. `client.get_multiroom_slave_list()` returns the raw payload, `DeviceGroupInfo` carries `surround` / `group_type`, the `get_multiroom_status()` fallback copies both keys, and `Player.multiroom_surround` / `Player.multiroom_group_type` cache them on refresh. `surround` is the WiiM Home Theater surround-grouping flag; a read or write command for the Home Theater toggle itself is still unknown.
+
 ## [2.3.21] - 2026-10-31
 
 ### Added

@@ -562,3 +562,129 @@ class TestGroupAPIDeviceGroupInfo:
 
         assert isinstance(result, DeviceGroupInfo)
         assert result.role == "solo"
+
+
+class TestGroupAPISlaveListExtras:
+    """``surround`` / ``group_type`` fields that WiiM wmrm 4.3 firmware adds to getSlaveList."""
+
+    SOLO_PAYLOAD = {"slaves": 0, "wmrm_version": "4.3", "surround": 0, "group_type": -1}
+
+    @pytest.mark.asyncio
+    async def test_get_multiroom_slave_list_returns_payload(self, mock_client):
+        """The raw getSlaveList object is returned unchanged."""
+        mock_client._request = AsyncMock(return_value=ApiResponse(parsed=dict(self.SOLO_PAYLOAD), raw=None))
+
+        assert await mock_client.get_multiroom_slave_list() == self.SOLO_PAYLOAD
+
+    @pytest.mark.asyncio
+    async def test_get_multiroom_slave_list_non_dict_is_empty(self, mock_client):
+        """Plain-text or unsupported responses map to an empty dict."""
+        mock_client._request = AsyncMock(return_value=ApiResponse(parsed=None, raw="unknown command"))
+
+        assert await mock_client.get_multiroom_slave_list() == {}
+
+    @pytest.mark.asyncio
+    async def test_get_slaves_info_uses_slave_list(self, mock_client):
+        """get_slaves_info() still returns only the slave_list entries."""
+        payload = {**self.SOLO_PAYLOAD, "slaves": 1, "slave_list": [{"ip": "192.168.1.50", "uuid": "S1"}]}
+        mock_client._request = AsyncMock(return_value=ApiResponse(parsed=payload, raw=None))
+
+        assert await mock_client.get_slaves_info() == [{"ip": "192.168.1.50", "uuid": "S1"}]
+
+    @pytest.mark.asyncio
+    async def test_get_multiroom_status_fallback_carries_surround_and_group_type(self, mock_client):
+        """getSlaveList fallback copies surround / group_type into the multiroom dict."""
+        mock_client.get_status = AsyncMock(return_value={"multiroom": {}})
+        mock_client._request = AsyncMock(return_value=ApiResponse(parsed=dict(self.SOLO_PAYLOAD), raw=None))
+        type(mock_client).host = "192.168.1.100"
+
+        result = await mock_client.get_multiroom_status()
+
+        assert result["slaves"] == 0
+        assert result["wmrm_version"] == "4.3"
+        assert result["surround"] is False
+        assert result["group_type"] == -1
+
+    @pytest.mark.asyncio
+    async def test_get_multiroom_status_fallback_omits_fields_when_absent(self, mock_client):
+        """Legacy firmware without the fields does not get surround / group_type keys."""
+        mock_client.get_status = AsyncMock(return_value={"multiroom": {}})
+        mock_client._request = AsyncMock(
+            return_value=ApiResponse(parsed={"slaves": 0, "wmrm_version": "4.2"}, raw=None)
+        )
+        type(mock_client).host = "192.168.1.100"
+
+        result = await mock_client.get_multiroom_status()
+
+        assert "surround" not in result
+        assert "group_type" not in result
+
+    @pytest.mark.asyncio
+    async def test_get_device_group_info_solo_reports_surround_and_group_type(self, mock_client):
+        """A solo WiiM device reports surround=False and group_type=-1."""
+        mock_client.get_status = AsyncMock(return_value={"multiroom": {}})
+        mock_client.get_device_info_model = AsyncMock(return_value=DeviceInfo(model="WiiM Amp Ultra", group="0"))
+        mock_client._request = AsyncMock(return_value=ApiResponse(parsed=dict(self.SOLO_PAYLOAD), raw=None))
+        type(mock_client).host = "192.168.1.100"
+
+        result = await mock_client.get_device_group_info()
+
+        assert result.role == "solo"
+        assert result.surround is False
+        assert result.group_type == -1
+
+    @pytest.mark.asyncio
+    async def test_get_device_group_info_master_reports_surround_enabled(self, mock_client):
+        """A master with surround=1 exposes surround=True alongside the slave list."""
+        payload = {
+            "slaves": 1,
+            "wmrm_version": "4.3",
+            "surround": 1,
+            "group_type": 1,
+            "slave_list": [
+                {"ip": "192.168.1.50", "uuid": "SURROUND-UUID", "channel": 0, "group_channel": -1},
+            ],
+        }
+        mock_client.get_status = AsyncMock(return_value={"multiroom": {}})
+        mock_client.get_device_info_model = AsyncMock(return_value=DeviceInfo(model="WiiM Amp Ultra", group="0"))
+        mock_client._request = AsyncMock(return_value=ApiResponse(parsed=payload, raw=None))
+        type(mock_client).host = "192.168.1.100"
+
+        result = await mock_client.get_device_group_info()
+
+        assert result.role == "master"
+        assert result.slave_hosts == ["192.168.1.50"]
+        assert result.slave_uuids == ["SURROUND-UUID"]
+        assert result.surround is True
+        assert result.group_type == 1
+
+    @pytest.mark.asyncio
+    async def test_get_device_group_info_legacy_firmware_leaves_fields_none(self, mock_client):
+        """Firmware without the fields leaves surround / group_type as None."""
+        mock_client.get_status = AsyncMock(return_value={"multiroom": {}})
+        mock_client.get_device_info_model = AsyncMock(return_value=DeviceInfo(model="Arylic S10", group="0"))
+        mock_client._request = AsyncMock(
+            return_value=ApiResponse(parsed={"slaves": 0, "wmrm_version": "4.2"}, raw=None)
+        )
+        type(mock_client).host = "192.168.1.100"
+
+        result = await mock_client.get_device_group_info()
+
+        assert result.role == "solo"
+        assert result.surround is None
+        assert result.group_type is None
+
+    @pytest.mark.asyncio
+    async def test_get_device_group_info_accepts_string_values(self, mock_client):
+        """Some firmware emits numbers as strings; they are coerced."""
+        mock_client.get_status = AsyncMock(return_value={"multiroom": {}})
+        mock_client.get_device_info_model = AsyncMock(return_value=DeviceInfo(model="WiiM Pro", group="0"))
+        mock_client._request = AsyncMock(
+            return_value=ApiResponse(parsed={"slaves": 0, "surround": "1", "group_type": "-1"}, raw=None)
+        )
+        type(mock_client).host = "192.168.1.100"
+
+        result = await mock_client.get_device_group_info()
+
+        assert result.surround is True
+        assert result.group_type == -1

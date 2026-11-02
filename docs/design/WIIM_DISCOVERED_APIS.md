@@ -187,6 +187,59 @@ presence and capability metadata. Do not replace the existing output probe
 strategy until this endpoint is tested on multiple WiiM models and firmware
 versions.
 
+## `multiroom:getSlaveList` extra fields (`surround`, `group_type`)
+
+`multiroom:getSlaveList` is a standard LinkPlay command, but WiiM firmware with
+`wmrm_version` 4.3 adds fields that older firmware does not have:
+
+```json
+{ "slaves": 0, "wmrm_version": "4.3", "surround": 0, "group_type": -1 }
+```
+
+With a slave present (WiiM Ultra master, firmware 5.2.822041):
+
+```json
+{
+  "group_type": 1,
+  "slave_list": [
+    {
+      "battery_charging": 0,
+      "battery_percent": 0,
+      "channel": 0,
+      "group_channel": -1,
+      "ip": "x.x.x.x",
+      "mute": 0,
+      "name": "WiiM Bu",
+      "type": "WiiMu-AmlogicA1",
+      "uuid": "...",
+      "version": "4.3",
+      "volume": 30
+    }
+  ],
+  "slaves": 1,
+  "surround": 0,
+  "wmrm_version": "4.3"
+}
+```
+
+| Field | Observed values | Notes |
+| --- | --- | --- |
+| `surround` | `0` on every device captured so far | WiiM Home Theater surround-grouping flag. Not yet observed with Home Theater enabled; expected `1`. |
+| `group_type` | `-1` ungrouped, `1` group master, `0` inside `multiroom:getnamegrouplist` saved groups | Raw integer passed through. |
+| `slave_list[].channel` | `0` | Stereo/left/right as in `setPlayerCmd:slave_channel`. |
+| `slave_list[].group_channel` | `-1` in plain stereo groups | Best candidate for the surround/center role once Home Theater is on. Unverified. |
+
+Firmware seen with the fields: WiiM Pro 4.8.81x, WiiM Amp 5.0.81x, WiiM Ultra /
+Amp Ultra / Sound 5.2.8xx (all `wmrm_version` 4.3). WiiM Mini 4.6.x, Arylic,
+Audio Pro and AudioCast firmware (`wmrm_version` 4.2 or lower) omit them.
+
+Implemented: `client.get_multiroom_slave_list()` returns the raw payload,
+`get_device_group_info()` fills `DeviceGroupInfo.surround` / `group_type`, the
+`get_multiroom_status()` fallback copies both keys into the multiroom dict, and
+`Player.multiroom_surround` / `Player.multiroom_group_type` cache the device's own
+values on refresh. The WiiM Home Theater toggle has no known read or write command
+(mjcumming/wiim#296); `surround` is the only candidate state field seen so far.
+
 ## Related daily-use APIs
 
 The same app-string sweep exposed a few endpoints that are closer to daily

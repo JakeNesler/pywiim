@@ -429,6 +429,30 @@ class TestSynchronizeGroupStateIntegration:
         assert mock_player._detected_role == "master"
 
     @pytest.mark.asyncio
+    async def test_synchronize_caches_surround_and_group_type(self, group_ops, mock_player):
+        """surround / group_type from get_device_group_info are cached on the player."""
+        from pywiim.models import DeviceGroupInfo
+
+        mock_player.client.get_device_group_info = AsyncMock(
+            return_value=DeviceGroupInfo(
+                role="master",
+                master_host=mock_player.host,
+                slave_hosts=["192.168.1.50"],
+                slave_uuids=["OTHER-UUID"],
+                slave_count=1,
+                surround=True,
+                group_type=1,
+            )
+        )
+        mock_player._all_players_finder = MagicMock(return_value=[mock_player])
+        mock_player._player_finder = MagicMock(return_value=None)
+
+        await group_ops._synchronize_group_state()
+
+        assert mock_player._group_surround is True
+        assert mock_player._group_type == 1
+
+    @pytest.mark.asyncio
     async def test_synchronize_no_cross_check_without_callback(self, group_ops, mock_player):
         """Test _synchronize_group_state skips cross-coordinator check without callback."""
         mock_player._all_players_finder = None

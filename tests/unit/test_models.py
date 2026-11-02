@@ -631,3 +631,23 @@ class TestDeviceGroupInfo:
         assert info.master_uuid == "master-uuid"
         assert len(info.slave_hosts) == 0
         assert info.slave_count == 0
+
+
+class TestDeviceGroupInfoSlaveListExtras:
+    """surround / group_type fields on DeviceGroupInfo."""
+
+    def test_defaults_are_none(self):
+        from pywiim.models import DeviceGroupInfo
+
+        info = DeviceGroupInfo(role="solo")
+
+        assert info.surround is None
+        assert info.group_type is None
+
+    def test_values_round_trip(self):
+        from pywiim.models import DeviceGroupInfo
+
+        info = DeviceGroupInfo(role="master", surround=True, group_type=1)
+
+        assert info.surround is True
+        assert info.group_type == 1

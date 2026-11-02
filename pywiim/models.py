@@ -573,3 +573,7 @@ class DeviceGroupInfo(BaseModel):
     slave_hosts: list[str] = []  # Slave IPs (if master) - may be internal 10.10.10.x for WiFi Direct
     slave_uuids: list[str] = []  # Slave UUIDs (if master) - for UUID-based matching
     slave_count: int = 0  # Number of slaves (if master)
+    # Extra fields reported by ``multiroom:getSlaveList`` on WiiM firmware with
+    # wmrm_version 4.3 (observed 2026). None when the firmware does not report them.
+    surround: bool | None = None  # WiiM Home Theater "surround" grouping flag (0/1 on the wire)
+    group_type: int | None = None  # Raw "group_type" (-1 observed when ungrouped, 1 on a group master)
