@@ -19,6 +19,13 @@ payloads are tested across more devices and firmware versions.
 | `GetAcousticCapability` | `client.get_acoustic_capability()` | `AcousticCapability` | Read-only acoustic capability blocks |
 | `getAllRoutines` | `client.get_all_routines()` | `RoutineList` | Read-only routine list |
 | `getSoundCardModeSupportList` | `client.get_sound_card_mode_support_list()` | `list[SoundCardModeSupport]` | Read-only output hardware metadata |
+| `getFeatureCapbility` | `client.get_feature_capability()` | `FeatureCapability` | Read-only feature-name list |
+| `getInputModeSupportList` | `client.get_input_mode_support_list()` | `list[InputModeSupport]` | Read-only per-input hardware metadata (CEC, Dolby) |
+| `getHDMIAutoSenseEnable` | `client.get_hdmi_auto_sense_enabled()` | `bool \| None` | Read-only HDMI auto-sense flag |
+| `getCecPowerCtrl` | `client.get_cec_power_control_enabled()` | `bool \| None` | Read-only HDMI CEC power-control flag |
+| `getPlayModeGainConfig` | `client.get_play_mode_gain_config()` | `PlayModeGainConfig` | Read-only per-input gain table |
+| `multiroom:subwooferGetPairInfo` | `client.get_wireless_subwoofer_pair_info()` | `list[dict] \| None` | Read-only wireless Sub Pro pairing list |
+| `multiroom:ConfigGet:leadtime` | `client.get_group_audio_delay_ms()` | `int \| None` | Read-only Group Audio Delay (ms) |
 
 Unsupported endpoints, plain `Failed`, `unknown command`, non-JSON bodies, and
 transport errors should not make discovery fail. Helpers return `None` or an
@@ -187,6 +194,113 @@ presence and capability metadata. Do not replace the existing output probe
 strategy until this endpoint is tested on multiple WiiM models and firmware
 versions.
 
+## Device-setting endpoints observed on WiiM Amp Ultra (2026-11)
+
+All payloads below come from a WiiM Amp Ultra on firmware `Linkplay.5.2.829663`.
+They are read-only in pywiim; the matching `set*` commands exist in the community
+OpenAPI spec but are not exposed until their behaviour is verified.
+
+### `getFeatureCapbility`
+
+Misspelled in firmware, like `getAudioInputCapbility`.
+
+```json
+{
+  "ver": "1.0",
+  "feature": [
+    {"name": "FEATURE_VOLUME_LIMIT"},
+    {"name": "FEATURE_AUDIO_CHANNEL"},
+    {"name": "FEATURE_VOLUME_BALANCE"},
+    {"name": "FEATURE_FADE_EFFECTS"},
+    {"name": "FEATURE_STATUS_LIGHT"},
+    {"name": "FEATURE_BUTTON_VOLUME_STEP"},
+    {"name": "FEATURE_CEC_VOLUME_STEP"}
+  ]
+}
+```
+
+No Home Theater or surround feature name appears in this list on the firmware tested.
+
+### `getInputModeSupportList`
+
+Per-input hardware metadata. The HDMI entry is the only one that reports
+`supportCEC` and `supportDolbyAudio`. Note the firmware typo `dafaultAutosenseEnable`.
+
+```json
+[
+  {"index": 1, "mode": "line-in", "signalType": "I2S",
+   "soundCard": {"cardName": "AMLAUGESOUND", "devName": "Line In", "cardId": "hw:0,2",
+                 "blockModeAccess": 1, "autoSenseSwitch": 1, "dafaultAutosenseEnable": 0,
+                 "autoChangePlayStatus": 1, "bitDepthSupportList": [16, 24, 32],
+                 "sampleRateSupportList": [44100, 48000, 88200, 96000, 176400, 192000],
+                 "HiFiSRCVersion": "1.0"}},
+  {"index": 2, "mode": "optical", "signalType": "SPDIF",
+   "soundCard": {"cardName": "AMLAUGESOUND", "devName": "Optical In", "cardId": "hw:0,4",
+                 "blockModeAccess": 0, "autoSenseSwitch": 1, "dafaultAutosenseEnable": 0,
+                 "autoChangePlayStatus": 1, "bitDepthSupportList": [16, 24, 32],
+                 "sampleRateSupportList": [44100, 48000, 88200, 96000, 176400, 192000]}},
+  {"index": 3, "mode": "HDMI", "signalType": "SPDIF",
+   "soundCard": {"cardName": "AMLAUGESOUND", "devName": "TV", "cardId": "hw:0,4",
+                 "blockModeAccess": 0, "autoSenseSwitch": 1, "dafaultAutosenseEnable": 1,
+                 "autoChangePlayStatus": 1, "supportCEC": 1, "supportDolbyAudio": "5.1"}}
+]
+```
+
+### `getHDMIAutoSenseEnable` and `getCecPowerCtrl`
+
+Plain `0` / `1` bodies (both `1` on the device tested). `getAutoSenseEnable` and
+`getSpdifAutoSenseEnable` exist as well and returned `0`; they are not wrapped yet.
+
+### `getPlayModeGainConfig`
+
+The "Input gain" table from the app. Gains are strings in dB.
+
+```json
+{
+  "enable": 0,
+  "max_gain": "10.0",
+  "min_gain": "-10.0",
+  "config": [
+    {"mode": 10, "name": "wifi", "gain": "0.0"},
+    {"mode": 40, "name": "line-in", "gain": "0.0"},
+    {"mode": 41, "name": "bluetooth", "gain": "0.0"},
+    {"mode": 43, "name": "optical", "gain": "0.0"},
+    {"mode": 49, "name": "HDMI", "gain": "0.0"}
+  ]
+}
+```
+
+### `multiroom:subwooferGetPairInfo`
+
+Wireless WiiM Sub Pro pairing list. Only the empty form has been observed:
+
+```json
+{ "subwoofer": [ ] }
+```
+
+`multiroom:subwooferPair:<...>` and `multiroom:subwooferForget:{"uuid":"..."}`
+exist in the community spec; pywiim does not send them. Caution: firmware answers
+plain `OK` to any unknown `multiroom:` subcommand, so `OK` is not evidence that a
+guessed command exists. pywiim treats `OK` here as unsupported.
+
+### `multiroom:ConfigGet:leadtime`
+
+```json
+{"status": "OK", "leadtime": "800"}
+```
+
+This is the "Group Audio Delay" setting from the app (800 ms default). The
+`multiroom:ConfigGet:realtime_cache_limit` sibling returned the same value.
+
+### Also observed, not wrapped
+
+`getPowerModeTime` (standby / sleep intervals), `get_ui_config` (display layout
+per input), `getHwErrorInfo` (hardware self-test), `GetSyncPlayExtraDelay`
+(`{"SyncPlayExtraDelay": 0.000}`), `getSpdifInNoiseRemove`, and
+`getMainSubExtraDelay`, which returned an `errorType -1000` body while the
+subwoofer output was disabled. `GetAcousticCapability` on this firmware adds
+`RC.LevelMatch`, `EQHeadroom` (`Off` / `Auto` / `Manual`) and `MainProtect` blocks.
+
 ## Related daily-use APIs
 
 The same app-string sweep exposed a few endpoints that are closer to daily
@@ -245,3 +359,4 @@ Once we have enough data, decide separately whether to wire these into:
 | 2026-06-27 | Cabin Speakers (`WiiM_Pro_with_gc4a`) | `Linkplay.4.8.814756` | `getAudioInputEnable`, `GetAcousticCapability`, `getAllRoutines` | `getModeRename` returned empty/unsupported; `getSoundCardModeSupportList` returned empty. Inputs reported: `wifi`, `bluetooth`, `line-in`, `optical`. |
 | 2026-06-27 | Main Deck (`ARYLIC_H50`) | `Linkplay.4.6.529755` | None | Optional endpoints returned firmware error payloads such as `unknown command` / `Fail`; helpers classify these as unsupported. |
 | 2026-06-27 | Dock Speakers (`UP2STREAM_AMP_V4`) | `4.6.415145` | None | All five helpers returned unsupported/empty. |
+| 2026-11-01 | WiiM Amp Ultra (`WiiM_Amp_Ultra`) | `Linkplay.5.2.829663` | `getAudioInputEnable`, `getAudioInputCapbility`, `GetAcousticCapability`, `getSoundCardModeSupportList`, `getFeatureCapbility`, `getInputModeSupportList`, `getHDMIAutoSenseEnable`, `getCecPowerCtrl`, `getPlayModeGainConfig`, `multiroom:subwooferGetPairInfo`, `multiroom:ConfigGet:leadtime` | HTTPS/443. `getModeRename` returned `Failed` (nothing renamed); `getAllRoutines` returned `{}`; sound-card list is a single `AUDIO_OUTPUT_SPEAKER_MODE` row. Inputs: `wifi`, `line-in`, `bluetooth`, `optical`, `HDMI`, `udisk`. |

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Read-only helpers for WiiM device-setting endpoints observed on Amp Ultra 5.2.829663: `get_feature_capability()` (`getFeatureCapbility`), `get_input_mode_support_list()` (`getInputModeSupportList`, reports HDMI `supportCEC` / `supportDolbyAudio`), `get_hdmi_auto_sense_enabled()`, `get_cec_power_control_enabled()`, `get_play_mode_gain_config()` (per-input gain), `get_wireless_subwoofer_pair_info()` (`multiroom:subwooferGetPairInfo`) and `get_group_audio_delay_ms()` (`multiroom:ConfigGet:leadtime`). All are probed by the diagnostics CLI and return `None` / `[]` when unsupported. No setters are exposed.
+
 ## [2.3.21] - 2026-10-31
 
 ### Added

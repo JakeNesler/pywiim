@@ -427,6 +427,16 @@ API_ENDPOINT_GET_AUDIO_INPUT_CAPABILITY = "/httpapi.asp?command=getAudioInputCap
 API_ENDPOINT_GET_MODE_RENAME = "/httpapi.asp?command=getModeRename"
 API_ENDPOINT_GET_ACOUSTIC_CAPABILITY = "/httpapi.asp?command=GetAcousticCapability"
 API_ENDPOINT_GET_ALL_ROUTINES = "/httpapi.asp?command=getAllRoutines"
+# Read-only WiiM device-setting endpoints observed on Amp Ultra 5.2.829663 (2026-11).
+# getFeatureCapbility is misspelled in firmware, like getAudioInputCapbility.
+API_ENDPOINT_GET_FEATURE_CAPABILITY = "/httpapi.asp?command=getFeatureCapbility"
+API_ENDPOINT_GET_INPUT_MODE_SUPPORT_LIST = "/httpapi.asp?command=getInputModeSupportList"
+API_ENDPOINT_GET_HDMI_AUTO_SENSE_ENABLE = "/httpapi.asp?command=getHDMIAutoSenseEnable"
+API_ENDPOINT_GET_CEC_POWER_CTRL = "/httpapi.asp?command=getCecPowerCtrl"
+API_ENDPOINT_GET_PLAY_MODE_GAIN_CONFIG = "/httpapi.asp?command=getPlayModeGainConfig"
+# Wireless WiiM Sub Pro pairing state and the multiroom lead time ("Group Audio Delay" in the app).
+API_ENDPOINT_GROUP_SUBWOOFER_PAIR_INFO = "/httpapi.asp?command=multiroom:subwooferGetPairInfo"
+API_ENDPOINT_GROUP_LEADTIME = "/httpapi.asp?command=multiroom:ConfigGet:leadtime"
 
 # Bluetooth endpoints
 API_ENDPOINT_START_BT_DISCOVERY = "/httpapi.asp?command=startbtdiscovery:"
@@ -714,6 +724,13 @@ __all__ = [
     "API_ENDPOINT_GET_MODE_RENAME",
     "API_ENDPOINT_GET_ACOUSTIC_CAPABILITY",
     "API_ENDPOINT_GET_ALL_ROUTINES",
+    "API_ENDPOINT_GET_FEATURE_CAPABILITY",
+    "API_ENDPOINT_GET_INPUT_MODE_SUPPORT_LIST",
+    "API_ENDPOINT_GET_HDMI_AUTO_SENSE_ENABLE",
+    "API_ENDPOINT_GET_CEC_POWER_CTRL",
+    "API_ENDPOINT_GET_PLAY_MODE_GAIN_CONFIG",
+    "API_ENDPOINT_GROUP_SUBWOOFER_PAIR_INFO",
+    "API_ENDPOINT_GROUP_LEADTIME",
     "DISPLAY_BRIGHTNESS_MIN",
     "DISPLAY_BRIGHTNESS_MAX",
     "DISPLAY_DEFAULT_BRIGHTNESS",

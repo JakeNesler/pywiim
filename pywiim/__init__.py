@@ -57,6 +57,14 @@ from .api.constants import (
     SUBWOOFER_PHASE_0,
     SUBWOOFER_PHASE_180,
 )
+from .api.discovered import (
+    FeatureCapability,
+    FeatureCapabilityItem,
+    InputModeSupport,
+    InputSoundCardInfo,
+    PlayModeGain,
+    PlayModeGainConfig,
+)
 from .api.peq import GraphicEQBand, GraphicEQSettings, PEQBand, PEQPresetInfo, PEQSettings, RoomCorrectionSettings
 from .api.subwoofer import SubwooferStatus
 from .backoff import BackoffController
@@ -134,6 +142,12 @@ __all__ = [
     "RoutineList",
     "SoundCardInfo",
     "SoundCardModeSupport",
+    "FeatureCapabilityItem",
+    "FeatureCapability",
+    "InputSoundCardInfo",
+    "InputModeSupport",
+    "PlayModeGain",
+    "PlayModeGainConfig",
     # Discovery
     "DiscoveredDevice",
     "discover_devices",

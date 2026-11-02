@@ -100,6 +100,28 @@ async def get_all_routines() -> RoutineList | None:
 
 async def get_sound_card_mode_support_list() -> list[SoundCardModeSupport]:
     """Get WiiM output sound-card support metadata."""
+
+# Device-setting endpoints observed on WiiM Amp Ultra 5.2.829663 (read-only)
+async def get_feature_capability() -> FeatureCapability | None:
+    """Get the WiiM feature-name list from getFeatureCapbility (.names for plain strings)."""
+
+async def get_input_mode_support_list() -> list[InputModeSupport]:
+    """Get per-input hardware metadata (signal type, auto-sense, CEC, Dolby) from getInputModeSupportList."""
+
+async def get_hdmi_auto_sense_enabled() -> bool | None:
+    """Get the HDMI ARC auto-sense flag from getHDMIAutoSenseEnable."""
+
+async def get_cec_power_control_enabled() -> bool | None:
+    """Get the HDMI CEC power-control flag from getCecPowerCtrl."""
+
+async def get_play_mode_gain_config() -> PlayModeGainConfig | None:
+    """Get the per-input gain table ("Input gain") from getPlayModeGainConfig."""
+
+async def get_wireless_subwoofer_pair_info() -> list[dict[str, Any]] | None:
+    """Get paired wireless WiiM Sub Pro entries from multiroom:subwooferGetPairInfo ([] when none)."""
+
+async def get_group_audio_delay_ms() -> int | None:
+    """Get the multiroom lead time ("Group Audio Delay", ms) from multiroom:ConfigGet:leadtime."""
 ```
 
 Important: `getModeRename` labels are display metadata, not stable source IDs.
